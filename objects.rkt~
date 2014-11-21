@@ -1,0 +1,34 @@
+#lang racket
+(require "firmata.rkt")
+
+;;; Simple object system with inheritance
+
+(define (ask object message . args)  
+  (let ((method (get-method object message)))
+    (if (method? method)
+        (apply method (cons object args))
+        (error "No method" message (cadr method)))))
+
+(define (get-method object message)
+  (object message))
+
+(define (no-method name)
+  (list 'no-method name))
+
+(define (method? x)
+  (not (no-method? x)))
+
+(define (no-method? x)
+  (if (pair? x)
+      (eq? (car x) 'no-method)
+      #f))
+
+(define (make-named-object name)
+  (let ([high #f])
+  (lambda (message) 
+    (cond ((eq? message 'name) (lambda (self) name))
+          ((eq? message 'pin) (lambda (self) pin))
+          ((eq? message 'high? (
+          (else (no-method name)))))
+          
+          
