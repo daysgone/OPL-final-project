@@ -1,0 +1,22 @@
+(define (display-message list-of-stuff)
+  (newline)
+  (for-each (lambda (s) (display s) (display " "))
+            list-of-stuff)
+  'message-displayed)
+
+(define (delq item lst)
+  (cond ((null? lst) '())
+        ((eq? item (car lst)) (delq item (cdr lst)))
+        (else (cons (car lst) (delq item (cdr lst))))))
+
+(define (filter predicate lst)
+  (cond ((null? lst) '())
+        ((predicate (car lst))
+         (cons (car lst) (filter predicate (cdr lst))))
+        (else (filter predicate (cdr lst)))))
+
+(define (is-a object property)
+  (let ((method (get-method object property)))
+    (if (method? method)
+        (ask object property)
+        false)))

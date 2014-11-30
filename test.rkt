@@ -1,9 +1,10 @@
 #lang racket
 
 (require "firmata.rkt")
+(require racket/date)
 ;(require (planet xtofs/firmata:1:0/firmata))
-(define port-name "/dev/tty.usbmodem1a21"); need to adjust depending on what usb port plugged into
-(open-firmata);; open serial port conection using USB to arduino
+;(define port-name "/dev/tty.usbmodem1a21"); need to adjust depending on what usb port plugged into
+;(open-firmata);; open serial port conection using USB to arduino
 
 (define led0 13) 
 (define led1 10) 
@@ -79,9 +80,10 @@
   ))
 
 (define (start)
-  (setup)
+  ;(setup)
   ;(keep-led-on lights 5)
   ;(led-on-temp lights 18.6)
+  (date)
   )
 (start)
 
