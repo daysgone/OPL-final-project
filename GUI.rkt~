@@ -8,10 +8,9 @@
 ;; Top Level GUI section
 ;;
 ;;-------------------------------------------
-(define num-horiz-panels 2)
-(define num-vert-panels 4)
+
 (define main-frame-height 300)
-(define main-frame-width 600)
+(define main-frame-width 300)
 (define button-width (/ main-frame-width 3))
 (define vert-panel-width (/ main-frame-width 2))
 (define horiz-panel-height (/ main-frame-height 2))
@@ -40,23 +39,32 @@
 (define all-lights '(kitchen bedroom hallway))
 (define light-state (make-hash))
 
-;;Defines the top panel with all of the lighting panels
 (define lights-panel (new horizontal-panel% 
                           [parent main-frame]
                           [min-height horiz-panel-height]
                           [alignment '(left top)]
                           [stretchable-height #f]
                           [stretchable-width #f]))
-;;--------------------------------------------------------
-;; Sets up the panel with the buttons for individual lights
-;;--------------------------------------------------------
-
+                          
 (define button-panel (new vertical-panel% [parent lights-panel]
                                  [enabled #t]
                                  [style '(border)]
                                  [border vert-panel-border]
                                  [min-width vert-panel-width]
                                  [alignment '(left top)]))
+(define lights-dividor-panel(new vertical-panel%
+                          [parent lights-panel]
+                          [alignment '(center top)]))
+
+(define msg-panel (new vertical-panel% [parent lights-panel]
+                              [enabled #t]
+                              [style '(border)]
+                              [border vert-panel-border]
+                              [min-width vert-panel-width]
+                              [alignment '(center top)]))
+
+(define msg (new message% [parent msg-panel]
+                          [label "No events thus far..."]))
 
 (define (make-button light-name)
   (new button% [parent button-panel]
@@ -79,50 +87,7 @@
 (define (switch light mesg)
                (if (hash-ref light-state light On) (turn-on light mesg)
                    (turn-off light mesg)))
-;;-------------------------------------------------------------
-;; Sets up status log for the lights (the center panel on top)
-;;-------------------------------------------------------------
-(define msg-panel (new vertical-panel% [parent lights-panel]
-                              [enabled #t]
-                              [style '(border)]
-                              [border vert-panel-border]
-                              [min-width vert-panel-width]
-                              [alignment '(center top)]))
-
-(define msg (new message% [parent msg-panel]
-                          [label "No events thus far..."]))
-;;------------------------------------------------------------
-;; Sets up scene selection panel (the top right panel)
-;;------------------------------------------------------------
-
-(define scenes-panel (new vertical-panel%
-                          [parent lights-panel]
-                          [style '(border)]
-                          [border vert-panel-border]
-                          [min-width vert-panel-width]
-                          [alignment '(center top)]))
-
-(define label-panel (new horizontal-panel%
-                          [parent scenes-panel]
-                          [style '(border)]
-                          [border horiz-panel-border]
-                          [min-height (/ horiz-panel-height 6)]
-                          [alignment '(center top)]))
-
-(define scenes-button-panel (new horizontal-panel%
-                          [parent scenes-panel]
-                          [min-height (* 2 (/ horiz-panel-height 3))]
-                          [alignment '(left top)]))
-
-(define scene-label (new message%
-                          [parent label-panel]
-                          [label "Select Scene:"]))
-
-;;(define lights-dividor-panel(new vertical-panel%
-;;                          [parent lights-panel]
-;;                          [alignment '(center top)]))
-
-
+                         
 
 ;;---------------------------------------------
 ;;
@@ -144,7 +109,6 @@
                            [alignment '(center top)]
                            ))
 
-
 ;;;(define temp-dividor-panel(new vertical-panel%
 ;;;                          [parent temp-panel]
 ;;;                          [alignment '(center top)]))
@@ -162,20 +126,9 @@
 (define furnace-setting (new message% 
                              [parent furnace-panel]
                              [label "Furnace is off"]))
-;;----------------------------------------------------
-;;
-;; Time Panel
-;;
-;;----------------------------------------------------
 
 
-(define temp-time-panel (new vertical-panel%
-                           [parent temp-panel]
-                           [style '(border)]
-                           [border vert-panel-border]
-                           [min-width vert-panel-width]
-                           [alignment '(right center)]
-                           ))
+
 
 
 
