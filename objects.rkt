@@ -1,5 +1,8 @@
+;#lang racket
 (require "firmata.rkt")
 (include "utils.rkt")
+
+(define clock-speed .2) ;; 0.005 is the tested max propogation speed.
 
 ;;; Simple object system with inheritance
 (define (ask object message . args)  
@@ -22,71 +25,63 @@
       (eq? (car x) 'no-method)
       #f))
 
-;;base object, places, and objects and all derived objects
-(define (make-named-object name . location)
+;;base object
+(define (make-device-obj name  )
   (lambda (message) 
     (cond [(eq? message 'name) (lambda (self) name)]
           [else (no-method name)])))
 
-;physical objects, devices
-(define (make-device name location)
-  (let ((named-obj (make-named-object name location)))
-    (lambda (message)
-      (cond ((eq? message 'place)    (lambda (self) location))
-            ((eq? message 'install) ;should never be used by user
-             (lambda (self)
-               (ask location 'add-thing self))) 
-            ((eq? message 'set-place)
-             (lambda (self new-place)
-               (set! location new-place)
-               'place-set))
-            (else (get-method named-obj message))))))
 
-(define (make&install-device name place)
-  (let ((device-obj (make-device name place)))
-    (ask device-obj 'install)
-    device-obj))
+(define (make-led-obj name pin-def)
+  (let ([cur-state #f] ; defaults to off
+        [intensity 255] ;range 0-255
+        [pin pin-def] ; defaults to some pin not on board
+        ;timer is a simple count down would like to use actual time as well for turning off and on
+        [timer -1] ; if neg then stays in current state till manually changed
+        [time-on -1]
+        [time-off -1]
+        
+        [device-obj (make-device-obj name)])
+    
+    (lambda (message) 
+      (cond [(eq? message 'pin) (lambda (self) pin)]
+            [(eq? message 'state?) (lambda (self) cur-state)]
+            [(eq? message 'set-high) 
+             (lambda (self) 
+               (begin (set! cur-state #t)
+                      (set-arduino-pin! pin)))]
+            [(eq? message 'set-low) 
+             (lambda (self) 
+               (begin (set! cur-state #f)
+                      (clear-arduino-pin! pin)))]
+            ;;change state of led to what is passed in as arg
+            [(eq? message 'set-state!) 
+             (lambda (self state) (set! cur-state (test-bool state) ))]
+            ;;toggle led state
+            [(eq? message 'switch-state) (lambda (self) (set! cur-state (not cur-state)))]
+            [(eq? message 'intensity) (lambda (self) intensity)]
+            [(eq? message 'set-intensity!) (lambda (self level) (set! intensity level))]
+            
+            [(eq? message 'time-left) (lambda (self) timer)] 
+            [(eq? message 'set-timer!) (lambda (self time) (set! timer time))]
+            [else (get-method device-obj message)])
+      )))
 
-;place/room
-(define (make-place name)
-  (let ([things '()]
-        [named-obj (make-named-object name)])
-    (lambda (message)
-      (cond ((eq? message 'things) (lambda (self) things))
-            ;; Following two methods should never be called by the user...
-            ;;  they are system-internal methods. See CHANGE-PLACE instead.
-            ((eq? message 'add-thing)
-             (lambda (self new-thing)
-               (cond ((memq new-thing things)
-                      (display-message (list (ask new-thing 'name)
-                                             "is already at" name)))
-                     (else (set! things (cons new-thing things))))
-               ))
-            ((eq? message 'del-thing)
-             (lambda (self thing)
-               (cond ((not (memq thing things))
-                      (display-message (list (ask thing 'name)
-                                             "is not at" name))
-                      false)
-                     (else (set! things (delq thing things))    ;; DELQ defined
-                           true))))                             ;; below
 
-            (else (get-method named-obj message))))))
+;; updated firmata functions with more functionality
+(define (my-set-pin-mode! pin mode)
+  (set-pin-mode! pin mode)
+  (sleep clock-speed))
 
-(define (make-led name place pin)
-  (let ([timer 0]
-        [pin 0]
-        [state #f]
-        [device-obj (make-device name place)])
-  (lambda (message) 
-    (cond [(eq? message 'led?) (lambda (self) true)]
-          [(eq? message 'pin) (lambda (self) pin)]
-          [(eq? message 'time-left) (lambda (self) timer)]
-          [(eq? message 'set-timer) (lambda (self time) (set! timer time))]
-          [else (get-method device-obj message)])
-         )))
-
-(define (make&install-led name place)
-  (let ((led (make-led name place 13)))
-    (ask led 'install) led))
-
+(define (set-high! pin)
+  (set-arduino-pin! pin)
+)
+(define (set-low! pin t)
+  (clear-arduino-pin! pin)
+  
+)
+(define (clear-pins group)
+  (for-each (λ (x);if u use map it returns values which are not needed for this
+              (ask x 'set-low)
+              ) lights)
+  )

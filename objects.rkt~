@@ -2,7 +2,6 @@
 (require "firmata.rkt")
 
 ;;; Simple object system with inheritance
-
 (define (ask object message . args)  
   (let ((method (get-method object message)))
     (if (method? method)
@@ -23,12 +22,20 @@
       (eq? (car x) 'no-method)
       #f))
 
-(define (make-named-object name)
-  (let ([high #f])
+(define (make-named-object name . location)
+  (if (null? location) set! place 
+  (let ([place location]
   (lambda (message) 
-    (cond ((eq? message 'name) (lambda (self) name))
-          ((eq? message 'pin) (lambda (self) pin))
-          ((eq? message 'high? (
-          (else (no-method name)))))
-          
-          
+    (cond [(eq? message 'name) (lambda (self) name)]
+          ((eq? message 'place)    (lambda (self) location))
+          [else (no-method name)])
+
+(define (make-led name . pin mode)
+  (let ([timer 0]
+        [pin 0]
+        [state #f])
+  (lambda (message) 
+    (cond [(eq? message 'name) (lambda (self) name)]
+          [else (get-method named-obj message)])
+         )))
+
