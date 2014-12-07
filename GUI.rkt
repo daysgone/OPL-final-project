@@ -1,6 +1,6 @@
 #lang racket
 (require racket/gui/base)
-(require firmata)
+(include "objects.rkt")
 ;;(open-firmata)
 
 ;;-------------------------------------------
@@ -8,6 +8,14 @@
 ;; Top Level GUI section
 ;;
 ;;-------------------------------------------
+
+(define date (seconds->date (current-seconds)))
+(define hour (number->string (date-hour date)))
+(define minute (number->string (date-minute date)))
+(define time-string (string-append hour ":" minute))
+
+(define run #f)
+
 (define num-horiz-panels 2)
 (define num-vert-panels 4)
 (define main-frame-height 300)
@@ -24,7 +32,11 @@
                                [stretchable-height #f]
                                [stretchable-width #f]
                                ))
-(send main-frame show #t)
+
+(define (start-gui) (send main-frame show #t)
+                    (send timer start 10))  ;;Call this in the REPL to show the GUI window
+(define (close-gui) (send main-frame show #f)
+                    (set! run #f))  ;;Call this in teh REPL to close the window
 ;;--------------------------------------------
 ;;
 ;; Lights section
@@ -34,6 +46,7 @@
 (define hallway "Hallway")
 (define bedroom "Bedroom")
 (define kitchen "Kitchen")
+(define living "Living")
 (define all "All")
 (define Off 0)
 (define On 1)
@@ -68,7 +81,7 @@
 (define kitchen-light (make-button kitchen))
 (define bedroom-light (make-button bedroom))
 (define hallway-light (make-button hallway))
-(define all-lights-button (make-button all))
+(define living-light  (make-button living))
 
 (define (turn-on light mesg)
                (lambda (light) (send mesg set-label "On")))
@@ -111,17 +124,21 @@
 
 (define scenes-button-panel (new horizontal-panel%
                           [parent scenes-panel]
-                          [min-height (* 2 (/ horiz-panel-height 3))]
+                          [min-height (/ horiz-panel-height 6)]
                           [alignment '(left top)]))
 
 (define scene-label (new message%
                           [parent label-panel]
                           [label "Select Scene:"]))
 
-;;(define lights-dividor-panel(new vertical-panel%
-;;                          [parent lights-panel]
-;;                          [alignment '(center top)]))
+(define (make-scene-button light-name)
+  (new button% [parent scenes-panel]
+             [label light-name]
+             [min-width button-width]
+             [callback (lambda (button event)
+                         (switch light-name msg))]))
 
+(define all-lights-button (make-scene-button all))
 
 
 ;;---------------------------------------------
@@ -174,19 +191,43 @@
                            [style '(border)]
                            [border vert-panel-border]
                            [min-width vert-panel-width]
-                           [alignment '(right center)]
+                           [alignment '(center top)]
                            ))
 
+(define time-label (new message%
+                          [parent temp-time-panel]
+                          [label "Time: "]))
+
+;;Display Time
+(define actual-time (new message%
+                          [parent temp-time-panel]
+                          [label time-string]))
+
+;;Display Date
+(define actual-date (new message%
+                          [parent temp-time-panel]
+                          [label (string-append (number->string (date-month date)) "/" (number->string (date-day date)) "/" (number->string (date-year date)))]))
+
+(define timer (new timer%
+                   [notify-callback (lambda () 
+                                    (set! date (seconds->date (current-seconds)))
+                                    (set! hour (number->string (date-hour date)))
+                                    (set! minute (number->string (date-minute date)))
+                                    (set! time-string (string-append hour ":" minute))
+                                    (send actual-date set-label (string-append (number->string (date-month date)) "/" (number->string (date-day date)) "/" (number->string (date-year date))))  
+                                    (send actual-time set-label time-string))]
+                   [interval #f]))
 
 
 
-(define (GoTo)
-  (set-pin-mode! 9 OUTPUT_MODE)
-  (set-arduino-pin! 9)
-  (sleep 1)
-  (clear-arduino-pin! 9) 
-  (sleep 1)
-  (GoTo)
-)
 
-(GoTo)
+;;(define (GoTo)
+;;  (set-pin-mode! 9 OUTPUT_MODE)
+;;  (set-arduino-pin! 9)
+;;  (sleep 1)
+;;  (clear-arduino-pin! 9) 
+;;  (sleep 1)
+;;  (GoTo)
+;;)
+
+;;(GoTo)
