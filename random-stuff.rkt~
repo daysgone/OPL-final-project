@@ -1,0 +1,7 @@
+#lang racket
+
+
+(define (my-range a b step)
+  (stream->list (in-range a b step)))
+
+(for ([i (in-range 0 255 5)]) (printf "~a " (- 250 i)))

@@ -1,0 +1,5 @@
+(define (display-message list-of-stuff)
+  (newline)
+  (for-each (lambda (s) (display s) (display " "))
+            list-of-stuff)
+  'message-displayed)

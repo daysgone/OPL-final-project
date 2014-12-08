@@ -1,4 +1,3 @@
-;#lang racket
 (require "firmata.rkt")
 (include "utils.rkt")
 
@@ -31,73 +30,128 @@
     (cond [(eq? message 'name) (lambda (self) name)]
           [else (no-method name)])))
 
-;;simple device
-(define (make-simple-device-obj name pin-def)
-  (let ([pin pin-def] ; defaults to some pin not on board
-        [obj (make-obj name)])
+#|-----------------------------------------
+              SIMPLE DEVICE 
+     -used for furnace , AC , fan
+ !!! mode must be INPUT_MODE OUTPUT_MODE ANALOG_MODE PWM_MODE
+-------------------------------------------|#
+(define (make-simple-device-obj name pin-def mode)
+  (let* ([pin pin-def]
+         [mode (set-pin-mode! pin mode)];sets mode on creation
+         [obj (make-obj name)])
     
     (lambda (message) 
-      (cond [(eq? message 'pin) (lambda (self) pin)];physical pin location on ardino
-            [(eq? message 'state?) (lambda (self) (is-arduino-pin-set? pin))];on/off?
+      (cond [(eq? message 'pin);returns int 
+             (lambda (self) pin)];physical pin location on ardino
+            [(eq? message 'mode);returns defined ints (INPUT_MODE/OUTPUT_MODE/ANALOG_MODE/PWM_MODE etc... from firmata.rkt)
+             (lambda (self) mode)]
+            [(eq? message 'set-mode!) 
+             (lambda (self new-mode) (set-pin-mode! pin new-mode))]
+            [(eq? message 'state?);returns bool, #t is on
+             (lambda (self) (is-arduino-pin-set? pin))]
             [(eq? message 'set-on) ;turn light on
              (lambda (self) (set-arduino-pin! pin))]
             [(eq? message 'set-off) ;turn light off
              (lambda (self)(clear-arduino-pin! pin))]
-            
-            ;;change state of led to what is passed in as arg
-            [(eq? message 'set-state!) 
+            [(eq? message 'set-state!) ;;change state of led to what is passed in as arg
              (lambda (self state) (if (boolean? state)
-                                     (begin (if (equal? state #t)
-                                                (set-on! pin);this will set internal state and update arduino pin state
-                                                (set-off! pin)
-                                            )
-                                            (unless (not debug) 
-                                              (printf "\t~a : \t ~a \n" (ask self 'name) (ask self 'state?))
-                                            )
-                                     )
-                                     (error "please use a boolean value")
-                                   ))] ; something other then a bolean used
-                                        
+                                      (begin (if (equal? state #t)
+                                                 (set-on! pin);this will set internal state and update arduino pin state
+                                                 (set-off! pin)
+                                                 )
+                                             (unless (not debug) 
+                                               (printf "\t~a : \t ~a \n" (ask self 'name) (ask self 'state?))
+                                               )
+                                             )
+                                      (error "please use a boolean value")
+                                      ))] ; something other then a bolean used
+            
             ;;toggle led state
-            [(eq? message 'switch-state) (lambda (self) (ask self 'set-state! (not(ask self 'state?))))]
-                                                  
-          [else (get-method obj message)])))
+            [(eq? message 'switch-state);toggles current state
+             (lambda (self) (ask self 'set-state! (not (ask self 'state?))))]
+            
+            [else (get-method obj message)])))
 )
 
-
-(define (make-led-obj name pin-def)
-  (let ([timer -1] ; if neg then stays in current state till manually changed
-        [time-on -1]
-        [time-off -1]
+#|-----------------------------------------
+                     LED 
+     !-> defaults to manual temp control unless at least 1 on/off time is used
+  TODO - to use intensity led must be connected to a PWD pin
+-------------------------------------------|#
+(define (make-led-obj name pin)
+  (let* ([schedual #f]
+        [mode OUTPUT_MODE]
+        [time-on (cons 0 0)]
+        [time-off (cons 0 0)]
         [intensity 0] ;range 0-255
-        
-        [device-obj (make-simple-device-obj name pin-def)])
-    
+        [device-obj (make-simple-device-obj name pin mode)])
+   
     (lambda (message) 
-      (cond [(eq? message 'intensity?) (lambda (self) intensity)]
+      (cond [(eq? message 'time) (lambda (self state) ;returns cons cell
+                                        (cond [(eq? state 'on) time-on]
+                                              [(eq? state 'off) time-off]
+                                              [else (error "please use 'on or 'off for state")]
+                                        ))]
+            ;usage (ask self 'set-time! (cons 12 00) 'on)
+            [(eq? message 'set-time!) (lambda (self time state) ;time passed as a cons cell???
+                                        (cond [(eq? state 'on) (set! time-on time)]
+                                              [(eq? state 'off)(set! time-off time)]
+                                              [else (error "please use 'on or 'off for state")]
+                                        ))]
+            
+            ;;NOT YET IMPLEMENTED!!!!
+            [(eq? message 'intensity);returns int
+             (lambda (self) intensity)];need to figure of pwm pins!!!!!
             [(eq? message 'set-intensity!) (lambda (self level) (set! intensity level))]
             
-            ;;may have timer outside of light????
-            [(eq? message 'time-left?) (lambda (self) timer)] 
-            [(eq? message 'set-timer!) (lambda (self time) (set! timer time))]
-            
-            [else (get-method simple-device-obj message)])
+            [else (get-method device-obj message)])
       )))
 
-(define (make-HVAC-obj name pin-def)
-  (let ([always-on #t];no schedualing
-        [temp-morn -1]
-        [time-morn 0]
-        [temp-afternoon -1]
-        [time-afternoon 0]
-        [temp t]
-        [temp-on (lambda (x) (- x 1))]
-        [temp-off (lambda (x) (+ x 1))]
-        [children '()] ;complex device can have simple devices as children
-        [device-obj (make-simple-device-obj name pin-def)])
+
+#|-----------------------------------------
+     HVAC - includes "furnace" and "ac" objects????
+     !-> defaults to manual temp control unless at least 1 on/off time is used
+-------------------------------------------|#
+(define (make-HVAC-obj name) 
+  (let* ([schedual #f];manual temp change only(overides current schedual until next schedualed time triggers)
+         
+         [time-morn (cons (cons 0 0) -1)]; time/temp ((12.00). 65) temp in F
+         [time-afternoon (cons (cons 0 0) -1)]
+         [time-evening (cons (cons 0 0) -1)]
+         [time-night (cons (cons 0 0) -1)]
+         [time-schedual (list time-morn time-afternoon time-evening time-night)]
+         
+         ;sets high/low for HVAC to kick on defaults to 2 degree dif
+         [temp-range 2]
+         [temp-on (lambda (x) (- x temp-range))]; prob dont need lambda???
+         [temp-off (lambda (x) (+ x temp-range))]
+         
+         [furnace (make-simple-device-obj 'furnace 11 OUTPUT_MODE)];shouldnt be hardcoded pin
+         [fan (make-simple-device-obj 'fan 12 OUTPUT_MODE)];shouldnt be hardcoded pin
+         [ac (make-simple-device-obj 'ac 13 OUTPUT_MODE)];shouldnt be hardcoded pin
+         
+         ;[thermostat (make-analog-obj 'therm);
+         
+         [slaves (list furnace fan ac)] ;complex device can have simple devices that are controled by it
+         [inputs '()] ; can allow
+         
+         [device-obj (make-simple-device-obj name 0 0)]);not actually connected to pins 
     
     (lambda (message) 
-      (cond [(eq? message 'set-fan!) (lambda (self) self)]
+      (cond [(eq? message 'get-slave) (λ (self sub-obj) sub-obj)] 
+            [(eq? message 'set-slave!) (λ (self slave state)
+            ;(filter-map (λ (i) (if (eq? slave (ask i 'name))#t #f))slaves))];returns a list not what is wanted
+                (map (λ (i) (if (eq? slave (ask i 'name));look for item in list with correct name
+                                (begin (ask i 'set-state! state)
+                                       #t)
+                                #f ))slaves))]
+                         
+            [(eq? message 'set-fan!) (λ (self state)
+                                       (ask (ask self 'get-slave fan) 'set-state! state))]
+            ;manual control only use 'set-temp-schedual! for automation
+            [(eq? message 'set-temp!) (lambda (self) self)]
+            [(eq? message 'set-temp-schedual!) (lambda (self ) self)]
             
-            [else (get-method simple-device-obj message)])
+            [(eq? message 'slaves) (lambda (self) slaves)]
+            [else (get-method device-obj message)])
       )))

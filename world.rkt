@@ -10,27 +10,29 @@
 (define LED4 (make-led-obj 'led4 10))
 
 ;HVAC device
-(define Furnace-LED   (make-led-obj 'furnace 11));red on rgb led
-(define Fan-LED   (make-led-obj 'fan 12  )); green on rgb
-(define AC-LED  (make-led-obj 'ac 13  )); blue on rgb
+(define HVAC (make-HVAC-obj 'hvac)) ;need to set pins for sub objects!!!!
+  
+;(define Furnace-LED   (make-led-obj 'furnace 11));red on rgb led
+;(define Fan-LED   (make-led-obj 'fan 12  )); green on rgb
+;(define AC-LED  (make-led-obj 'ac 13  )); blue on rgb
+;(define thermostat (make-analog-obj 'therm ))
 
-(define HVAC (list Furnace-LED AC-LED Fan-LED)); device
+;(define HVAC (list Furnace-LED AC-LED Fan-LED)); device
 
 ;;define groups of lights
 (define lights (list LED1 LED2 LED3 LED4))
 
-(set! env (list HVAC lights)) ;;allows clearing of all pins on all groups
+(set! env (list lights)) ;;allows clearing of all pins on all groups
 
 (define (setup)
   (reset-system) ;clear all pins
-  (set! debug #t) ; use debug messages
+  (set! debug #f) ; use debug messages
   
   ;;need to setup pin mode before it will actually work
-  (map (λ (i) (set-pin-mode! (ask i 'pin) OUTPUT_MODE)) lights)
-  (map (λ (i) (set-pin-mode! (ask i 'pin) OUTPUT_MODE)) HVAC)
+  ;;leds automatically set to OUTPUT_MODE
+  ;(map (λ (i) (set-pin-mode! (ask (ask i 'slaves?) 'pin) OUTPUT_MODE)) HVAC)
   
   (report-digital-port! 0 1) ;allows u to as current state of pin
-  (testing)
   )
 
 
@@ -45,23 +47,23 @@
   (sleep 1)
   
   ;;turn all lights off
-  ;(change-light-state #f lights)
-  ;(display-light-state lights)
-  ;(sleep clock-speed)
+  (change-light-state #f lights)
+  (display-light-state lights)
+  (sleep clock-speed)
   
   ;;set a light on manually
-  ;(printf "setting LED1 on :\n")
-  ;(sleep clock-speed)
-  ;(ask LED1 'set-on )
-  ;(sleep clock-speed)
-  ;(display-light-state lights)
+  (printf "setting LED1 on :\n")
+  (sleep clock-speed)
+  (ask LED1 'set-on )
+  (sleep clock-speed)
+  (display-light-state lights)
   
   
-  ;(printf "setting LED1 off :\n")
- ; (sleep clock-speed)
-  ;(ask LED1 'set-off )
-  ;(sleep clock-speed)
-  ;(display-light-state lights)
+  (printf "setting LED1 off :\n")
+  (sleep clock-speed)
+  (ask LED1 'set-off )
+  (sleep clock-speed)
+  (display-light-state lights)
   
   )
 
@@ -75,8 +77,7 @@
              
 
 ;;initialze
-;(set! debug #t)
-;(map (λ (x) (digital-write x LOW)) lights)
+
 (setup)
 
 ;(testing)

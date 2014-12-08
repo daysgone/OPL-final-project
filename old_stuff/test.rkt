@@ -1,6 +1,6 @@
 #lang racket
 
-(require "firmata.rkt")
+(require "../firmata.rkt")
 (require racket/date)
 ;(require (planet xtofs/firmata:1:0/firmata))
 ;(define port-name "/dev/tty.usbmodem1a21"); need to adjust depending on what usb port plugged into
@@ -81,8 +81,8 @@
 
 (define (start)
   ;(setup)
-  (keep-led-on lights 5)
-  ;(led-on-temp lights 18.6)
+  ;(keep-led-on lights 5)
+  (led-on-temp lights 18.8)
   ;(date)
   )
 (start)

@@ -1,0 +1,4 @@
+#lang racket
+(include "objects.rkt")
+
+(define conf-room           (make-place 'conf-room))
