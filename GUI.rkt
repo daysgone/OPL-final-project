@@ -85,7 +85,7 @@
                [label name]
                [min-width button-width]
                [callback (lambda (button event)
-                         (for-each switch obj-lst))]))
+                         (for-each (lambda (obj) (ask obj 'set-state! #t)) obj-lst))]))
 
 ;;Creates a message
 (define (make-msg child-of says)
@@ -94,8 +94,9 @@
              [label says]))
                      
 (define (set-time sec)
-        (set! date (seconds->date sec))
-        (set! hour (number->string (abs (- 12 (date-hour date)))))
+        (set! date (seconds->date sec #t))
+        (set! hour (number->string (if (<= (date-hour date) 12) (date-hour date)
+                                       (- (date-hour date) 12))))
         (set! minute (if (> (date-minute date) 10) (number->string (date-minute date))
                         (string-append "0" (number->string (date-minute date)))))
         (set! month (number->string (date-month date)))
