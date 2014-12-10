@@ -66,9 +66,25 @@
  
   (change-light-state #f lights);;shut all lights off
   (sleep clock-speed)
-  
-  
   )
+
+(define (test-hvac-furnace)
+  (set! debug #t)
+  (ask HVAC 'set-temp! 70)
+  (ask HVAC 'set-state! 2)
+  (loop)
+  )
+(define (test-hvac-ac)
+  (set! debug #t)
+  (ask HVAC 'set-temp! 70)
+  (ask HVAC 'set-state! 4)
+  (loop)
+  )
+
+  (define (loop)
+    (ask HVAC 'run)
+    (sleep 2)
+    (loop))
    
 
 ;;initialze

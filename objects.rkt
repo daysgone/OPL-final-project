@@ -174,25 +174,15 @@
      !-> defaults to manual temp control unless at least 1 on/off time is used
 -------------------------------------------|#
 (define (make-HVAC-obj name) 
-  (let* ([temp 65]
+  (let* ([current-state 0];;0 off, 1 fan, 2 furnace, 4 ac
+         [temp 65]
          [temp-range .5];sets high/low for HVAC to kick on defaults to .5 degree dif
-         ;[temp-on (- temp temp-range)]
-         ;[temp-off (+ temp temp-range)]
-         [schedual #f];manual temp change only(overides current schedual until next schedualed time triggers)
-         
-         ;;unused at this time
-         [time-morn (cons (cons 0 0) -1)]; time/temp ((12.00). 65) temp in F
-         [time-afternoon (cons (cons 0 0) -1)]
-         [time-evening (cons (cons 0 0) -1)]
-         [time-night (cons (cons 0 0) -1)]
-         [time-schedual (list time-morn time-afternoon time-evening time-night)]
          #|----------
                            sub objects of device 
                                                  ---------------|#
          [furnace (make-simple-device-obj 'furnace 11 OUTPUT_MODE)];hardcoded pin
          [fan (make-simple-device-obj 'fan 12 OUTPUT_MODE)];hardcoded pin
          [ac (make-simple-device-obj 'ac 13 OUTPUT_MODE)];hardcoded pin
-         
          [thermostat (make-simple-analog-sensor-obj 'therm 0 INPUT_MODE)];
          ;complex device can have simple device sub objects 
          [children (list furnace fan ac)]
@@ -200,7 +190,14 @@
          
          [all-children (flatten (list children sensors))]
          
-         
+         ;;unused at this time
+         [schedual #f];manual temp change only(overides current schedual until next schedualed time triggers)
+         [time-morn (cons (cons 0 0) -1)]; time/temp ((12.00). 65) temp in F
+         [time-afternoon (cons (cons 0 0) -1)]
+         [time-evening (cons (cons 0 0) -1)]
+         [time-night (cons (cons 0 0) -1)]
+         [time-schedual (list time-morn time-afternoon time-evening time-night)]
+         ;parent obj
          [obj (make-obj name)])
     
     (λ (message) 
@@ -215,48 +212,61 @@
                                                 )
                                           ))]
             ;;shows all sub objects state, really only the fan and either then ac/furnace  
-            [(eq? message 'state?)(λ (self)
-                                    (for-each (λ (i) (ask i 'state?)) children))]
+            [(eq? message 'device-state?)(λ (self)
+                                    (map (λ (i) (ask i 'state?)) children))]
             ;controls of whole system is off 
-            [(eq? message 'set-off!)(λ (self)
+            [(eq? message 'set-device-off!)(λ (self)
                                       (for-each (λ (i) (ask i 'set-state! #f)) children))]
             
             ;;control whats on
             [(eq? message 'set-state!)(λ (self state)
-                                        (cond [(and (boolean? state) state)
-                                               ;furnace only
-                                               (begin (ask self 'set-child! 'furnace #t)
-                                                      (ask self 'set-child! 'ac #f))]
-                                              [(boolean? state)
-                                               ;ac only
-                                               (begin (ask self 'set-child! 'furnace #f)
-                                                      (ask self 'set-child! 'ac #t))]
-                                              ;set both off
-                                              [(equal? 'off state)
-                                               ;shuts system off
-                                               (ask self 'set-off!)]
-                                              [else (error "#t for furnace, #f for ac , 'off for system off")]))]
-            
+                                        (cond [(equal? state 0);shuts system off
+                                               (begin (ask self 'set-device-off!)
+                                                      (set! current-state 0))]
+                                              [(equal? state 1) (set! current-state 1)];fan on
+                                              [(equal? state 2) (set! current-state 2)];furnace on
+                                              [(equal? state 4) (set! current-state 4)];ac on
+                                              
+                                              [else (error "0 for system off, 1 for fan, 2 for furnace, 4 for ac ")]))]
+           
+            ;internal variable 0 off, 1 fan(on), 2 furnace(fan auto), 4 ac(fan auto) , 3 fan+furnace, 5 fan+ac
+            [(eq? message 'state?) (λ (self) current-state)]
             
             ;set individual sub-objects
             [(eq? message 'set-child!) (λ (self child state)
                                          (ask self 'ask-child child 'set-state! state))]
             
             
-            ;;externally F
+            #|---------------
+
+                       functions to run furnace/ac/fan
+            -------------------|#
             [(eq? message 'cur-temp) (λ (self) (degreesF)) ]
-            [(eq? message 'temp) (λ (self) temp) ]
+            [(eq? message 'temp) (λ (self) temp) ]; desired temp
             
-            ;;internally C
             [(eq? message 'run) (λ (self)
-                                  (printf "Current temp  ~a C\t ~a F\n" (round (degreesC)) (round (degreesF)))
-                                  (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
-                                         (ask self 'set-furnace! #t)]
-                                        [(>= (degreesC) (+ (F->C temp) temp-range))
-                                         (ask self 'set-furnace! #f)]
-                                        [else ("in no change temp range\n")]
-                                        
-                                        ))]
+                                  (unless (not debug)(printf "Current temp  ~a C\t ~a F\n" (round (degreesC)) (round (degreesF))))
+                                  
+                                    
+                                    (cond [(equal? current-state 0)
+                                                  (printf "system currently off, please use 'set-state! \n")]
+                                          [(equal? current-state 1)(printf "fan set to on\n")]
+                                          [(equal? current-state 2);furnace on
+                                           (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
+                                                 (ask self 'set-child! 'furnace #t)]
+                                                [(>= (degreesC) (+ (F->C temp) temp-range))
+                                                 (ask self 'set-child! 'furnace  #f)]
+                                                [else (unless (not debug)(printf "in no change temp range\n"))])]
+                                          [(equal? current-state 4);ac on
+                                           (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
+                                                 (ask self 'set-child! 'ac  #f)]
+                                                [(>= (degreesC) (+ (F->C temp) temp-range))
+                                                 (ask self 'set-child! 'ac #t)]
+                                                [else (unless (not debug)(printf "in no change temp range\n"))])]
+                                          
+                                              
+                                                
+                                                ))]
             
             
             ;manual control only use 'set-temp-schedual! for automation
