@@ -39,37 +39,47 @@
   (let* ([pin pin-def]
          ;[mode (set-pin-mode! pin mode)];sets mode on creation
          [obj (make-obj name)]
+         [intensity -1]
          )
     
     ;;set things on creation
     (set-pin-mode! pin mode);sets mode 
     
     (λ (message) 
-      (cond [(eq? message 'pin);returns int 
+      (cond [(eq? message 'get-intensity) (λ (self) intensity)]
+            [(eq? message 'pin);returns int 
              (λ (self) pin)];physical pin location on ardino
             ;[(eq? message 'mode);returns defined ints (INPUT_MODE/OUTPUT_MODE/ANALOG_MODE/PWM_MODE etc... from firmata.rkt)
             ; (λ (self) mode)]
             [(eq? message 'set-mode!) (λ (self new-mode) (set-pin-mode! pin new-mode))];;prob shouldnt be used
             
             [(eq? message 'state?);returns bool, #t is on
-             (λ (self) (is-arduino-pin-set? pin))]
+             (λ (self) (if(equal? mode PWM_MODE)
+                          (if (> intensity 0) #t #f); has no state
+                          (is-arduino-pin-set? pin)))]
             
             [(eq? message 'set-on!) ;turn light on
-             (λ (self . value)  (if(equal? mode PWM_MODE)
-                  (analog-write! pin (car value))
+             (λ (self . value)
+               (if(equal? mode PWM_MODE)
+                  (let([v (if (null? value) 255 (car value))])
+                    (analog-write! pin v)
+                    (set! intensity v));internal intensity since we can ask current status
                   (set-arduino-pin! pin)))]
             
             [(eq? message 'set-off!) ;turn light off
              (λ (self)
                (if(equal? mode PWM_MODE)
-                  (analog-write! pin 0)
+                  (begin
+                    (analog-write! pin 0)
+                    (set! intensity 0));internal intensity since we can ask current status
                   (clear-arduino-pin! pin)))]
             
             [(eq? message 'set-state!) ;;change state of led to what is passed in as arg
              (λ (self state . value) (cond [(and (boolean? state) (null? value) (equal? state #t) )
                                             (ask self 'set-on!)]
                                            [(and (boolean? state) (equal? state #t) )
-                                            (ask self 'set-on! (car value))]
+                                            (ask self 'set-on! (car value))
+                                            (set! intensity (car value))]
                                            [(boolean? state)
                                             (ask self 'set-off!)]
                                            [else (error "please use a boolean value")])
@@ -77,10 +87,12 @@
             
             ;;toggle led state
             [(eq? message 'switch-state);toggles current state
-             (λ (self) (ask self 'set-state! (not (ask self 'state?))))]
+             (λ (self) (if(equal? mode OUTPUT_MODE)
+                          (ask self 'set-state! (not (ask self 'state?)))
+                          (ask self 'set-state! #t (abs (- 255 intensity)))))]
             
             [else (get-method obj message)])))
-)
+  )
 
 #|-----------------------------------------
                      LED 
@@ -97,12 +109,10 @@
                      (if new-mode
                          (begin (set-pin-mode! pin new-mode)
                                 new-mode)
-                         OUTPUT_MODE)
-                         
-                   ))]
+                         OUTPUT_MODE)      
+                     ))]
          [time-on (cons 0 0)]
          [time-off (cons 0 0)]
-         [intensity 0] ;range 0-255 only can be used if mode PWM
          [device-obj (make-simple-device-obj name pin mode )]
          )
     
@@ -116,14 +126,14 @@
                                                            (set! schedual #f) )
                                                        (unless (not debug) 
                                                          (printf "\t~a schedual: \t ~a \n" (ask self 'name) (ask self 'schedual?))))
-                                             (error "please use a boolean value")
-                                            ))]
+                                                (error "please use a boolean value")
+                                                ))]
             [(eq? message 'time) (λ (self state) ;returns cons cell
                                    (if schedual
                                        (cond [(eq? state 'on) time-on]
                                              [(eq? state 'off) time-off]
                                              [else (error "please use 'on or 'off for state")]
-                                       )
+                                             )
                                        (error "please set-schedual #t before using")))]
             
             ;usage (ask self 'set-time! (cons 12 00) 'on)
@@ -135,11 +145,6 @@
                                                   (unless (not debug) 
                                                     (printf "\t~a ~a @ ~a \n" (ask self 'name) state (ask self 'time state))))
                                             (error "please set-schedual #t before using")))]
-            
-            ;;NOT YET IMPLEMENTED!!!!
-            [(eq? message 'intensity);returns int
-             (λ (self) intensity)];need to figure of pwm pins!!!!!
-            [(eq? message 'set-intensity!) (λ (self level) (set! intensity level))]
             
             [else (get-method device-obj message)])
       )))
@@ -158,30 +163,29 @@
             [(eq? message 'mode);returns defined ints (INPUT_MODE/OUTPUT_MODE/ANALOG_MODE/PWM_MODE etc... from firmata.rkt)
              (λ (self) mode)]
             ;;[(eq? message 'set-mode!) (λ (self new-mode) (set-pin-mode! pin new-mode))]
-            [(eq? message 'value?);returns 0-1023
+            [(eq? message 'value);returns 0-1023
              (λ (self) (read-analog-pin pin))]
             
             
             [else (get-method obj message)])))
-)
+  )
 #|-----------------------------------------
      HVAC - includes "furnace" and "ac" objects????
      !-> defaults to manual temp control unless at least 1 on/off time is used
 -------------------------------------------|#
 (define (make-HVAC-obj name) 
-  (let* ([schedual #f];manual temp change only(overides current schedual until next schedualed time triggers)
+  (let* ([temp 65]
+         [temp-range .5];sets high/low for HVAC to kick on defaults to .5 degree dif
+         ;[temp-on (- temp temp-range)]
+         ;[temp-off (+ temp temp-range)]
+         [schedual #f];manual temp change only(overides current schedual until next schedualed time triggers)
          
+         ;;unused at this time
          [time-morn (cons (cons 0 0) -1)]; time/temp ((12.00). 65) temp in F
          [time-afternoon (cons (cons 0 0) -1)]
          [time-evening (cons (cons 0 0) -1)]
          [time-night (cons (cons 0 0) -1)]
          [time-schedual (list time-morn time-afternoon time-evening time-night)]
-         
-         ;sets high/low for HVAC to kick on defaults to 2 degree dif
-         [temp-range 2]
-         [temp-on (λ (x) (- x temp-range))]; prob dont need λ???
-         [temp-off (λ (x) (+ x temp-range))]
-         
          #|----------
                            sub objects of device 
                                                  ---------------|#
@@ -190,43 +194,75 @@
          [ac (make-simple-device-obj 'ac 13 OUTPUT_MODE)];hardcoded pin
          
          [thermostat (make-simple-analog-sensor-obj 'therm 0 INPUT_MODE)];
+         ;complex device can have simple device sub objects 
+         [children (list furnace fan ac)]
+         [sensors (list thermostat)];cannot be set off
          
-         [children (list furnace fan ac)] ;complex device can have simple devices that are controled by it
-         [inputs '()] ; can allow
+         [all-children (flatten (list children sensors))]
          
          
          [obj (make-obj name)])
     
     (λ (message) 
-      (cond ;[(eq? message 'set-off!) ((for-each (λ () (ask  'set-off) children)))]
-            [(eq? message 'get-child) (λ (self sub-obj) sub-obj)] 
-            [(eq? message 'set-child-state!) (λ (self child state)
-                (for-each (λ (i) (if (eq? child (ask i 'name));look for item in list with correct name
-                                (begin (ask i 'set-state! state)
-                                       #t)
-                                #f ))children))]
-            [(eq? message 'ask-child) (λ (self child message . args)
-                                        (let ([c (findf (λ (i) (equal? child (ask i 'name))) children)]);#f if not found, only returns first child with name
-                                          (cond [(equal? c #f) (error "no child found with name:" child " acceptable children: " (ask self 'children-name))];no child found
+      (cond [(eq? message 'ask-child) (λ (self child message . args);work with just 1 child
+                                        (let ([c (findf (λ (i) (equal? child (ask i 'name))) all-children)]);#f if not found, only returns first child with name
+                                          (cond [(equal? c #f) (error "no sub-object found with name:" child )];no child found
                                                 [(null? args);no extra args
-                                                 (display c)];(ask c message)]
+                                                 (ask c message)]
                                                 [(equal? (length args) 1)
                                                  (ask c message (car args))]
                                                 [else (error "code not setup for more then 1 extra arg")] ;might have more data in args thats needed!!!!
-                                          )
+                                                )
                                           ))]
-                                                
-            [(eq? message 'set-furnace!) (λ (self state)
-                                       (ask (ask self 'get-child furnace) 'set-state! state))]
-            [(eq? message 'set-fan!) (λ (self state)
-                                       (ask (ask self 'get-child fan) 'set-state! state))]
-            [(eq? message 'set-fan!) (λ (self state)
-                                       (ask (ask self 'get-child ac) 'set-state! state))]
+            ;;shows all sub objects state, really only the fan and either then ac/furnace  
+            [(eq? message 'state?)(λ (self)
+                                    (for-each (λ (i) (ask i 'state?)) children))]
+            ;controls of whole system is off 
+            [(eq? message 'set-off!)(λ (self)
+                                      (for-each (λ (i) (ask i 'set-state! #f)) children))]
+            
+            ;;control whats on
+            [(eq? message 'set-state!)(λ (self state)
+                                        (cond [(and (boolean? state) state)
+                                               ;furnace only
+                                               (begin (ask self 'set-child! 'furnace #t)
+                                                      (ask self 'set-child! 'ac #f))]
+                                              [(boolean? state)
+                                               ;ac only
+                                               (begin (ask self 'set-child! 'furnace #f)
+                                                      (ask self 'set-child! 'ac #t))]
+                                              ;set both off
+                                              [(equal? 'off state)
+                                               ;shuts system off
+                                               (ask self 'set-off!)]
+                                              [else (error "#t for furnace, #f for ac , 'off for system off")]))]
+            
+            
+            ;set individual sub-objects
+            [(eq? message 'set-child!) (λ (self child state)
+                                         (ask self 'ask-child child 'set-state! state))]
+            
+            
+            ;;externally F
+            [(eq? message 'cur-temp) (λ (self) (degreesF)) ]
+            [(eq? message 'temp) (λ (self) temp) ]
+            
+            ;;internally C
+            [(eq? message 'run) (λ (self)
+                                  (printf "Current temp  ~a C\t ~a F\n" (round (degreesC)) (round (degreesF)))
+                                  (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
+                                         (ask self 'set-furnace! #t)]
+                                        [(>= (degreesC) (+ (F->C temp) temp-range))
+                                         (ask self 'set-furnace! #f)]
+                                        [else ("in no change temp range\n")]
+                                        
+                                        ))]
+            
             
             ;manual control only use 'set-temp-schedual! for automation
             ;if schedual is #f then time-time-off-day variables will be used
             [(eq? message 'set-temp-schedual!) (λ (self ) self)]
-            [(eq? message 'set-temp!) (λ (self) self)]
+            [(eq? message 'set-temp!) (λ (self value) (set! temp value))]
             
             [(eq? message 'children) (λ (self) children)];list sub objects
             [(eq? message 'children-name) (λ (self) (map (λ (i) (ask i 'name)) children))]

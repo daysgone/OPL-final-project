@@ -9,9 +9,9 @@
 (define LED3 (make-led-obj 'led3 9 PWM_MODE))
 
 (define LED4 (make-led-obj 'led4 10))
-(define thermostat (make-simple-analog-sensor-obj 'therm 0 INPUT_MODE))
+;(define thermostat (make-simple-analog-sensor-obj 'therm 0 INPUT_MODE))
 ;HVAC device
-;(define HVAC (make-HVAC-obj 'hvac)) ;need to set pins for sub objects!!!!
+(define HVAC (make-HVAC-obj 'hvac)) ;need to set pins for sub objects!!!!
 
 ;;define groups of lights
 (define lights (list LED1 LED2 LED3 LED4))
@@ -43,16 +43,26 @@
   (sleep (* clock-speed 2))
   
   ;;set a light on manually
-  (printf "setting LED1 on :\n")
+  (printf "setting LED1 on one at a time :\n")
   (sleep clock-speed)
   (ask LED1 'set-on! )
   (sleep clock-speed)
+  (ask LED2 'set-on! )
+  (sleep clock-speed)
+  (ask LED3 'set-on! )
+  (sleep clock-speed)
+  (ask LED4 'set-on! )
+  (sleep clock-speed)
   (display-light-state lights)
-  
-  ;;toggle all led
-  (toggle-state lights); with debug mode on will display change states
   (sleep clock-speed)
   
+  ;;toggle all led
+  (toggle-state lights)
+  (sleep clock-speed)
+  
+  ;turn PWM light on slightly
+  (ask LED3 'set-on! 50)
+  (sleep clock-speed)
  
   (change-light-state #f lights);;shut all lights off
   (sleep clock-speed)
