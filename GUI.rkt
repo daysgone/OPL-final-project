@@ -114,6 +114,14 @@
                      [max-value max]
                      [init-value init]))
 
+;;make a new radio box
+(define (make-radio-box child-of name choice-lst layout)
+         (new radio-box% [parent child-of]
+                         [label name]
+                         [choices choice-lst]
+                         [style layout]))
+
+
 ;;Call this in the REPL to show the GUI window
 (define (start-gui) (send main-frame show #t)  
                     (send timer start 10))  
@@ -225,7 +233,7 @@
 
 (define ac-setting (make-msg furnace-panel "A/C is off!"))
 (define furnace-slider (make-slider furnace-panel "Set To" 0 120 60))
-
+(define hvac-mode (make-radio-box furnace-panel "Mode:" '("Heat" "Cool") '(horizontal)))
 
 ;;----------------------------------------------------
 ;;
@@ -234,7 +242,7 @@
 ;;----------------------------------------------------
 
 (define hvac (make-HVAC-obj 'heater))
-(ask hvac 'set-state! 2)
+(ask hvac 'set-mode! 2)
 (define temp-time-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
 
 (define time-label (make-msg temp-time-panel "Time: "))
@@ -255,10 +263,13 @@
                                       (send actual-time set-label time-string)
                                       (update-status-display)
                                       (ask hvac 'set-temp! (send furnace-slider get-value))
+                                      (ask hvac 'set-mode! (cond [(equal? 0 (send hvac-mode get-selection)) 2]
+                                                                 [(equal? 1 (send hvac-mode get-selection)) 4]
+                                                                 [else 0]))
                                       (ask hvac 'run)
-                                      (send furnace-setting set-label (string-append "Furnace is " (cond [(equal? 2 (ask hvac 'state?)) "On"]
+                                      (send furnace-setting set-label (string-append "Furnace is " (cond [(equal? #t (ask hvac 'ask-child 'furnace 'state?)) "On"]
                                                                                                      [else "Off"])))
-                                      (send ac-setting set-label (string-append "A/C is " (if (equal? 4 (ask hvac 'state?)) "On"
+                                      (send ac-setting set-label (string-append "A/C is " (if (equal? 4 (ask hvac 'mode?)) "On"
                                                                                                      "Off"))))]
                    [interval #f]))
 
