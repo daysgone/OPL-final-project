@@ -249,7 +249,7 @@
                                   
                                     
                                     (cond [(equal? current-state 0)
-                                                  (printf "system currently off, please use 'set-state! \n")]
+                                                  (unless (not debug)(printf "system currently off, please use 'set-state! \n"))]
                                           [(equal? current-state 1)(printf "fan set to on\n")]
                                           [(equal? current-state 2);furnace on
                                            (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
