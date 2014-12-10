@@ -61,7 +61,7 @@
 ;;Creates a horizontal panel with a border
 (define (make-horiz-border-panel child-of height align)
         (new horizontal-panel%
-                          [parent scenes-panel]
+                          [parent child-of]
                           [style '(border)]
                           [border horiz-panel-border]
                           [min-height height]
@@ -100,7 +100,7 @@
         (set! hour (number->string (if (<= (date-hour date) 12) (date-hour date)
                                        (- (date-hour date) 12))))
         (set! minute (if (> (date-minute date) 10) (number->string (date-minute date))
-                        (string-append "0" (number->string (date-minute date)))))
+                        ((number->string (date-minute date)))))
         (set! month (number->string (date-month date)))
         (set! day (number->string (date-day date)))
         (set! year (number->string (date-year date)))
@@ -208,7 +208,10 @@
 ;;---------------------------------------------
 (define temp-panel (make-horiz-panel main-frame horiz-panel-height '(left top)))
 (define reading-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
-(define temp (make-msg reading-panel "0"))
+(define current-temp "0000")
+(define top-temp-label (make-msg reading-panel "Currently"))
+(define temp (make-msg reading-panel current-temp))
+(define temp-label-msg (make-msg reading-panel "Degrees (F)"))
 (define furnace-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
 
 
@@ -239,7 +242,8 @@
 (define timer (new timer%
                    [notify-callback (lambda () 
                                       (set-time (current-seconds))
-                                      (send temp set-label (number->string (round (ask hvac 'cur-temp))))
+                                      (set! current-temp (number->string (ask hvac 'cur-temp)))
+                                      (send temp set-label current-temp)
                                       (send actual-date set-label date-string)  
                                       (send actual-time set-label time-string)
                                       (update-status-display)
