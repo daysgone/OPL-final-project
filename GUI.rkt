@@ -80,13 +80,14 @@
         (ask obj 'switch-state))
 
 ;;Creates a button that handles multiple devices
-(define (make-multi-button name child-of on-obj-lst off-obj-lst)
+(define (make-multi-button name child-of on-obj-lst off-obj-lst use-all)
   (new button% [parent child-of]
                [label name]
                [min-width button-width]
                [callback (lambda (button event)
-                         (for-each (lambda (obj) (ask obj 'set-state! #t)) on-obj-lst)
-                         (for-each (lambda (obj) (ask obj 'set-state! #f)) off-obj-lst))]))
+                         (cond [use-all (for-each (lambda (obj) (ask obj 'switch-state)) all-lights)]
+                               [else (for-each (lambda (obj) (ask obj 'set-state! #t)) on-obj-lst)
+                                     (for-each (lambda (obj) (ask obj 'set-state! #f)) off-obj-lst)]))]))
 
 ;;Creates a message
 (define (make-msg child-of says)
@@ -194,9 +195,9 @@
 (define label-panel (make-horiz-border-panel scenes-panel 20 '(center top)))  
 (define scene-label (make-msg label-panel "Select Scene: "))
 
-(define movie-time (make-multi-button "Movie Time" scenes-panel (list hallway kitchen) (list bedroom living)))
-(define night-light (make-multi-button "Night Light" scenes-panel (list hallway bedroom living) (list kitchen)))
-(define all-lights-button (make-multi-button "All Lights" scenes-panel all-lights '()))
+(define movie-time (make-multi-button "Movie Time" scenes-panel (list hallway kitchen) (list bedroom living) #f))
+(define night-light (make-multi-button "Night Light" scenes-panel (list hallway bedroom living) (list kitchen) #f))
+(define all-lights-button (make-multi-button "All Lights" scenes-panel all-lights '() #t))
 
 
 
@@ -222,6 +223,7 @@
 ;;----------------------------------------------------
 
 (define hvac (make-HVAC-obj 'heater))
+(ask hvac 'set-state! 2)
 (define temp-time-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
 
 (define time-label (make-msg temp-time-panel "Time: "))
@@ -237,7 +239,7 @@
 (define timer (new timer%
                    [notify-callback (lambda () 
                                       (set-time (current-seconds))
-                                      (send temp set-label (number->string (ask hvac 'cur-temp)))
+                                      (send temp set-label (number->string (round (ask hvac 'cur-temp))))
                                       (send actual-date set-label date-string)  
                                       (send actual-time set-label time-string)
                                       (update-status-display)
