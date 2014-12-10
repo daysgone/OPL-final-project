@@ -1,7 +1,7 @@
 #lang racket
 (require racket/gui/base)
 (include "objects.rkt")
-;;(open-firmata)
+(open-firmata)
 
 ;;-------------------------------------------
 ;;
@@ -68,47 +68,48 @@
                           [alignment align]))
 
 ;;Creates a light button       
-(define (make-button obj child-of )
+(define (make-button obj child-of)
   (new button% [parent child-of]
              [label (ask obj 'name)]
              [min-width button-width]
              [callback (lambda (button event)
-                         (switch obj))]))
+                         (ask obj 'switch-state))]))
 
 ;;Switch device on/off (the opposite of its current state)
 (define (switch obj)
-        (cond [(ask obj 'state?) (ask obj 'set-on)]
-                               [else (ask obj 'set-of)]))
+        (ask obj 'switch-state))
 
 ;;Creates a button that handles multiple devices
-(define (make-multi-button name child-of lst)
+(define (make-multi-button name child-of obj-lst)
   (new button% [parent child-of]
                [label name]
                [min-width button-width]
                [callback (lambda (button event)
-                         (for-each switch lst))]))
+                         (for-each switch obj-lst))]))
 
 ;;Creates a message
 (define (make-msg child-of says)
         (new message%
              [parent child-of]
              [label says]))
-
-(define (start-gui) (send main-frame show #t)  ;;Call this in the REPL to show the GUI window
-                    (send timer start 10))  
-(define (close-gui) (send main-frame show #f))  ;;Call this in teh REPL to close the window
                      
 (define (set-time sec)
         (set! date (seconds->date sec))
         (set! hour (number->string (abs (- 12 (date-hour date)))))
-        (set! minute (number->string (date-minute date)))
-              ;;(if (> (date-minute date) 10) (number->string (date-minute date))
-              ;;          (string-append "0" (number->string (date-minute date)))))
+        (set! minute (if (> (date-minute date) 10) (number->string (date-minute date))
+                        (string-append "0" (number->string (date-minute date)))))
         (set! month (number->string (date-month date)))
         (set! day (number->string (date-day date)))
         (set! year (number->string (date-year date)))
         (set! time-string (string-append hour ":" minute))
         (set! date-string (string-append month "/" day "/" year)))
+
+;;Call this in the REPL to show the GUI window
+(define (start-gui) (send main-frame show #t)  
+                    (send timer start 10))  
+
+;;Call this in teh REPL to close the window
+(define (close-gui) (send main-frame show #f)) 
   
 
 ;;--------------------------------------------
@@ -120,12 +121,11 @@
 (define hallway (make-led-obj "Hallway" 7))
 (define bedroom (make-led-obj "Bedroom" 8 ))
 (define kitchen (make-led-obj "Kitchen" 9 ))
-(define living  (make-led-obj "Living" 10))
+(define living  (make-led-obj "Living Room" 10))
 (define all "All")
 (define Off 0)
 (define On 1)
-(define all-lights '(kitchen bedroom hallway living))
-(define light-state (make-hash))
+(define all-lights (list kitchen bedroom hallway living))
 
 ;;Defines the top panel with all of the lighting panels
 (define lights-panel (make-horiz-panel main-frame horiz-panel-height '(left top)))
@@ -143,31 +143,32 @@
 (define (turn-off-timed lst)
         (for-each (timer-off hour min) lst))
 
-;;--------------------------------------------------------
-;; Sets up the panel with the buttons for individual lights
-;;--------------------------------------------------------
-
 (define button-panel (make-vert-border-panel lights-panel vert-panel-width '(left top)))
- 
-(define kitchen-light (make-button kitchen button-panel))
-(define bedroom-light (make-button bedroom button-panel))
-(define hallway-light (make-button hallway button-panel))
-(define living-light  (make-button living button-panel))
 
 ;;-------------------------------------------------------------
 ;; Sets up status log for the lights (the center panel on top)
 ;;-------------------------------------------------------------
 (define msg-panel (make-vert-border-panel lights-panel vert-panel-width '(center top)))
   
-(define top-msg-panel (make-horiz-panel msg-panel 30 '(center top)))
-(define second-msg-panel (make-horiz-panel msg-panel 30 '(center top)))
-(define third-msg-panel (make-horiz-panel msg-panel 30 '(center top)))
-(define bottom-msg-panel (make-horiz-panel msg-panel 30 '(center top)))
+(define top-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
+(define second-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
+(define third-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
+(define bottom-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
 
-(define top-msg (make-msg top-msg-panel "Kitchen Light: On"))
-(define sec-msg (make-msg second-msg-panel "Bedroom Light: Off"))
-(define third-msg (make-msg third-msg-panel "Hallway Light: On"))
-(define bottom-msg (make-msg bottom-msg-panel "Living Room Light: Off"))
+(define top-msg (make-msg top-msg-panel "Kitchen: On"))
+(define sec-msg (make-msg second-msg-panel "Bedroom: On"))
+(define third-msg (make-msg third-msg-panel "Hallway: On"))
+(define bottom-msg (make-msg bottom-msg-panel "Living Room: On"))
+
+;;--------------------------------------------------------
+;; Sets up the panel with the buttons for individual lights
+;;--------------------------------------------------------
+ 
+(define kitchen-light (make-button kitchen button-panel))
+(define bedroom-light (make-button bedroom button-panel))
+(define hallway-light (make-button hallway button-panel))
+(define living-light  (make-button living button-panel))
+
 
 ;;------------------------------------------------------------
 ;; Sets up scene selection panel (the top right panel)
@@ -178,8 +179,8 @@
 (define label-panel (make-horiz-border-panel scenes-panel 20 '(center top)))  
 (define scene-label (make-msg label-panel "Select Scene: "))
 
-(define movie-time (make-multi-button "Movie Time" scenes-panel (list hallway-light kitchen-light)))
-(define night-light (make-multi-button "Night Light" scenes-panel (list hallway-light bedroom-light living-light)))
+(define movie-time (make-multi-button "Movie Time" scenes-panel (list hallway kitchen)))
+(define night-light (make-multi-button "Night Light" scenes-panel (list hallway bedroom living)))
 (define all-lights-button (make-multi-button "All Lights" scenes-panel all-lights))
 
 
@@ -191,7 +192,7 @@
 ;;---------------------------------------------
 (define temp-panel (make-horiz-panel main-frame horiz-panel-height '(left top)))
 (define reading-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
-(define temp (make-msg reading-panel "Temperature:\n72 Degrees"))
+(define temp (make-msg reading-panel "0"))
 (define furnace-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
 
 
@@ -205,7 +206,7 @@
 ;;
 ;;----------------------------------------------------
 
-
+(define hvac (make-HVAC-obj 'heater))
 (define temp-time-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
 
 (define time-label (make-msg temp-time-panel "Time: "))
@@ -221,8 +222,9 @@
 (define timer (new timer%
                    [notify-callback (lambda () 
                                       (set-time (current-seconds))
-                                      (timer-on all-lights)
-                                      (timer-off all-lights)
+                                      (send temp set-label (number->string (ask hvac 'cur-temp)))
                                       (send actual-date set-label date-string)  
                                       (send actual-time set-label time-string))]
                    [interval #f]))
+
+ 
