@@ -1,5 +1,4 @@
-;password for website opluml14
-
+(require "firmata.rkt")
 #|-----------------------------------------
             Global vars
 
@@ -7,14 +6,12 @@
 (define clock-speed 1) ;; 0.005 is the tested max propogation speed.
 (define debug #f)
 (define env '()) ; create empty env
-
+(define valid-modes (list OUTPUT_MODE ANALOG_MODE PWM_MODE ))
 
 #|-----------------------------------------
            utility functions
 
 -------------------------------------------|#
-(define (my-range a b step)
-  (stream->list (in-range a b step))) ;overcomplicated use of strem ;P
 
 ;;what type of object is it????
 (define (is-a object property)
@@ -27,27 +24,29 @@
 #|-----------------------------------------
           general pin based functions
 
--------------------------------------------|#
+
 (define (set-on! pin)
   (set-arduino-pin! pin)
 )
 (define (set-off! pin)
   (clear-arduino-pin! pin)  
 )
-
+-------------------------------------------|#
 #|-----------------------------------------
           general pin based functions
 
 -------------------------------------------|#
 (define (clear-pins group)
   (for-each (λ (x);if u use map it returns values which are not needed for this
-              (ask x 'set-off)
+              (ask x 'set-off!)
               ) group)
   )
 
 ;environment is all the object groups created
 (define (reset-system)
-  (for-each (lambda (x) (clear-pins x)) env))
+  (if (not(null? env));something in env
+      (for-each (lambda (x) (clear-pins x)) env)
+      (error "nothing in env")))
 
 
 #|-----------------------------------------
@@ -65,6 +64,7 @@
 (define (toggle-state group)
   (unless (not debug) (printf "Flipping each value :\n"));debug
   (for-each (λ (x) (ask x 'switch-state)) group)
+  (sleep clock-speed)
 )
 
 ; change a whole group at once -------------------
@@ -82,11 +82,12 @@
   (clear-pins group);shut off now
   (sleep clock-speed); brief pause before it can do something else
 )
+ 
 
 #|-----------------------------------------
           HVAC util functions
 
--------------------------------------------|#
+
 ;analog sensor has a range of inaccuracy of 2 degree C from data sheet on temp sensor used
 (define (get-volt-temp-sens pin)
   (* (read-analog-pin pin) 0.00488758553));converts 0-1023 that read-analog gets to values in range 0-5.0
@@ -119,7 +120,7 @@
         
   
   ))
-
+-------------------------------------------|#
 #|
 ;;unused functions---------------------
 (define (is-a object property)
