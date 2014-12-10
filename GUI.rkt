@@ -107,7 +107,12 @@
         (set! time-string (string-append hour ":" minute))
         (set! date-string (string-append month "/" day "/" year)))
 
-
+(define (make-slider child-of name min max init)
+        (new slider% [parent child-of]
+                     [label name]
+                     [min-value min]
+                     [max-value max]
+                     [init-value init]))
 
 ;;Call this in the REPL to show the GUI window
 (define (start-gui) (send main-frame show #t)  
@@ -219,6 +224,8 @@
 
 
 (define ac-setting (make-msg furnace-panel "A/C is off!"))
+(define furnace-slider (make-slider furnace-panel "Set To" 0 120 60))
+
 
 ;;----------------------------------------------------
 ;;
@@ -247,6 +254,7 @@
                                       (send actual-date set-label date-string)  
                                       (send actual-time set-label time-string)
                                       (update-status-display)
+                                      (ask hvac 'set-temp! (send furnace-slider get-value))
                                       (ask hvac 'run)
                                       (send furnace-setting set-label (string-append "Furnace is " (cond [(equal? 2 (ask hvac 'state?)) "On"]
                                                                                                      [else "Off"])))
