@@ -80,12 +80,13 @@
         (ask obj 'switch-state))
 
 ;;Creates a button that handles multiple devices
-(define (make-multi-button name child-of obj-lst)
+(define (make-multi-button name child-of on-obj-lst off-obj-lst)
   (new button% [parent child-of]
                [label name]
                [min-width button-width]
                [callback (lambda (button event)
-                         (for-each (lambda (obj) (ask obj 'set-state! #t)) obj-lst))]))
+                         (for-each (lambda (obj) (ask obj 'set-state! #t)) on-obj-lst)
+                         (for-each (lambda (obj) (ask obj 'set-state! #f)) off-obj-lst))]))
 
 ;;Creates a message
 (define (make-msg child-of says)
@@ -180,9 +181,9 @@
 (define label-panel (make-horiz-border-panel scenes-panel 20 '(center top)))  
 (define scene-label (make-msg label-panel "Select Scene: "))
 
-(define movie-time (make-multi-button "Movie Time" scenes-panel (list hallway kitchen)))
-(define night-light (make-multi-button "Night Light" scenes-panel (list hallway bedroom living)))
-(define all-lights-button (make-multi-button "All Lights" scenes-panel all-lights))
+(define movie-time (make-multi-button "Movie Time" scenes-panel (list hallway kitchen) (list bedroom living)))
+(define night-light (make-multi-button "Night Light" scenes-panel (list hallway bedroom living) (list kitchen)))
+(define all-lights-button (make-multi-button "All Lights" scenes-panel all-lights '()))
 
 
 
@@ -225,7 +226,12 @@
                                       (set-time (current-seconds))
                                       (send temp set-label (number->string (ask hvac 'cur-temp)))
                                       (send actual-date set-label date-string)  
-                                      (send actual-time set-label time-string))]
+                                      (send actual-time set-label time-string)
+                                      (ask hvac 'run)
+                                      (send furnace-setting set-label (string-append "Furnace is " (if (equal? 2 (ask hvac 'state?)) "On"
+                                                                                                     "Off")))
+                                      (send ac-setting set-label (string-append "A/C is " (if (equal? 4 (ask hvac 'state?)) "On"
+                                                                                                     "Off"))))]
                    [interval #f]))
 
  
