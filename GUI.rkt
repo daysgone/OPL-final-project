@@ -100,7 +100,7 @@
         (set! hour (number->string (if (<= (date-hour date) 12) (date-hour date)
                                        (- (date-hour date) 12))))
         (set! minute (if (> (date-minute date) 10) (number->string (date-minute date))
-                        ((number->string (date-minute date)))))
+                        (number->string (date-minute date))))
         (set! month (number->string (date-month date)))
         (set! day (number->string (date-day date)))
         (set! year (number->string (date-year date)))
@@ -161,13 +161,14 @@
 (define bottom-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
 
 (define top-msg (make-msg top-msg-panel "Kitchen: On"))
+(define kitchen-status-string "Off")
 (define sec-msg (make-msg second-msg-panel "Bedroom: On"))
 (define third-msg (make-msg third-msg-panel "Hallway: On"))
 (define bottom-msg (make-msg bottom-msg-panel "Living Room: On"))
 
 (define (update-status-display)
-        (send top-msg set-label (string-append "Kitchen: " (if (ask kitchen 'state?) "On" 
-                                                               "Off")))
+        (cond [(ask kitchen 'state?) (send top-msg set-label "On")]
+              [else (send top-msg set-label "Off")])
         (send sec-msg set-label (string-append "Bedroom: " (if (ask bedroom 'state?) "On" 
                                                                "Off")))
         (send third-msg set-label (string-append "Hallway: " (if (ask hallway 'state?) "On" 
