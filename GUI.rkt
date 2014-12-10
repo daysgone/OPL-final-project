@@ -11,7 +11,7 @@
 
 (define date (seconds->date (current-seconds)))
 (define hour (number->string (date-hour date)))
-(define minute (number->string (date-minute date)))
+(define minute "10")
 (define month (number->string (date-month date)))
 (define day (number->string (date-day date)))
 (define year (number->string (date-year date)))
@@ -160,21 +160,20 @@
 (define third-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
 (define bottom-msg-panel (make-horiz-panel msg-panel 30 '(left center)))
 
-(define top-msg (make-msg top-msg-panel "Kitchen: On"))
-(define kitchen-status-string "Off")
-(define sec-msg (make-msg second-msg-panel "Bedroom: On"))
-(define third-msg (make-msg third-msg-panel "Hallway: On"))
-(define bottom-msg (make-msg bottom-msg-panel "Living Room: On"))
+(define top-msg (make-msg top-msg-panel "Kitchen Light: Off"))
+(define sec-msg (make-msg second-msg-panel "Bedroom Light: Off"))
+(define third-msg (make-msg third-msg-panel "Hallway Light: Off"))
+(define bottom-msg (make-msg bottom-msg-panel "Living Room Light: Off"))
 
 (define (update-status-display)
-        (cond [(ask kitchen 'state?) (send top-msg set-label "On")]
-              [else (send top-msg set-label "Off")])
-        (send sec-msg set-label (string-append "Bedroom: " (if (ask bedroom 'state?) "On" 
-                                                               "Off")))
-        (send third-msg set-label (string-append "Hallway: " (if (ask hallway 'state?) "On" 
-                                                               "Off")))
-        (send bottom-msg set-label (string-append "Living Room: " (if (ask living 'state?) "On" 
-                                                               "Off"))))
+        (cond [(ask kitchen 'state?) (send top-msg set-label "Kitchen Light: On")]
+              [else (send top-msg set-label "Kitchen Light: Off")])
+        (cond [(ask bedroom 'state?) (send sec-msg set-label "Bedroom Light: On")]
+              [else (send sec-msg set-label "Bedroom Light: Off")])
+        (cond [(ask hallway 'state?) (send third-msg set-label "Hallway Light: On")]
+              [else (send third-msg set-label "Hallway Light: Off")])
+        (cond [(ask living 'state?) (send bottom-msg set-label "Living Room Light: On")]
+              [else (send bottom-msg set-label "Living Room Light: Off")]))
 
 
 ;;--------------------------------------------------------
@@ -216,9 +215,10 @@
 (define furnace-panel (make-vert-border-panel temp-panel vert-panel-width '(center top)))
 
 
-(define furnace-setting (make-msg furnace-panel "Furnace is off"))
+(define furnace-setting (make-msg furnace-panel "Furnace is off!"))
 
-(define ac-setting (make-msg furnace-panel "A/C is on"))
+
+(define ac-setting (make-msg furnace-panel "A/C is off!"))
 
 ;;----------------------------------------------------
 ;;
@@ -243,8 +243,7 @@
 (define timer (new timer%
                    [notify-callback (lambda () 
                                       (set-time (current-seconds))
-                                      (set! current-temp (number->string (ask hvac 'cur-temp)))
-                                      (send temp set-label current-temp)
+                                      (send temp set-label (number->string (round (ask hvac 'cur-temp))))
                                       (send actual-date set-label date-string)  
                                       (send actual-time set-label time-string)
                                       (update-status-display)
