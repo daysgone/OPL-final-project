@@ -50,29 +50,30 @@
             ;[(eq? message 'mode);returns defined ints (INPUT_MODE/OUTPUT_MODE/ANALOG_MODE/PWM_MODE etc... from firmata.rkt)
             ; (λ (self) mode)]
             [(eq? message 'set-mode!) (λ (self new-mode) (set-pin-mode! pin new-mode))];;prob shouldnt be used
+            
             [(eq? message 'state?);returns bool, #t is on
              (λ (self) (is-arduino-pin-set? pin))]
+            
             [(eq? message 'set-on!) ;turn light on
-             (λ (self)  (if(equal? mode PWM_MODE)
-                  (analog-write! pin 255)
+             (λ (self . value)  (if(equal? mode PWM_MODE)
+                  (analog-write! pin (car value))
                   (set-arduino-pin! pin)))]
+            
             [(eq? message 'set-off!) ;turn light off
              (λ (self)
                (if(equal? mode PWM_MODE)
                   (analog-write! pin 0)
                   (clear-arduino-pin! pin)))]
+            
             [(eq? message 'set-state!) ;;change state of led to what is passed in as arg
-             (λ (self state) (if (boolean? state)
-                                      (begin (if (equal? state #t)
-                                                 (ask self 'set-on!)
-                                                 (ask self 'set-off!)
-                                                 )
-                                             (unless (not debug) 
-                                               (printf "\t~a : \t ~a \n" (ask self 'name) (ask self 'state?))
-                                               )
-                                             )
-                                      (error "please use a boolean value")
-                                      ))] ; something other then a bolean used
+             (λ (self state . value) (cond [(and (boolean? state) (null? value) (equal? state #t) )
+                                            (ask self 'set-on!)]
+                                           [(and (boolean? state) (equal? state #t) )
+                                            (ask self 'set-on! (car value))]
+                                           [(boolean? state)
+                                            (ask self 'set-off!)]
+                                           [else (error "please use a boolean value")])
+               )]
             
             ;;toggle led state
             [(eq? message 'switch-state);toggles current state
