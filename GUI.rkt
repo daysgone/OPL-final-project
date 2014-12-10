@@ -269,8 +269,8 @@
                                       (ask hvac 'run)
                                       (send furnace-setting set-label (string-append "Furnace is " (cond [(equal? #t (ask hvac 'ask-child 'furnace 'state?)) "On"]
                                                                                                      [else "Off"])))
-                                      (send ac-setting set-label (string-append "A/C is " (if (equal? 4 (ask hvac 'mode?)) "On"
-                                                                                                     "Off"))))]
+                                      (send ac-setting set-label (string-append "A/C is " (cond [(equal? #t (ask hvac 'ask-child 'ac 'state?)) "On"]
+                                                                                                     [else "Off"]))))]
                    [interval #f]))
 
  
