@@ -106,6 +106,8 @@
         (set! time-string (string-append hour ":" minute))
         (set! date-string (string-append month "/" day "/" year)))
 
+
+
 ;;Call this in the REPL to show the GUI window
 (define (start-gui) (send main-frame show #t)  
                     (send timer start 10))  
@@ -161,6 +163,17 @@
 (define sec-msg (make-msg second-msg-panel "Bedroom: On"))
 (define third-msg (make-msg third-msg-panel "Hallway: On"))
 (define bottom-msg (make-msg bottom-msg-panel "Living Room: On"))
+
+(define (update-status-display)
+        (send top-msg set-label (string-append "Kitchen: " (if (ask kitchen 'state?) "On" 
+                                                               "Off")))
+        (send sec-msg set-label (string-append "Bedroom: " (if (ask bedroom 'state?) "On" 
+                                                               "Off")))
+        (send third-msg set-label (string-append "Hallway: " (if (ask hallway 'state?) "On" 
+                                                               "Off")))
+        (send bottom-msg set-label (string-append "Living Room: " (if (ask living 'state?) "On" 
+                                                               "Off"))))
+
 
 ;;--------------------------------------------------------
 ;; Sets up the panel with the buttons for individual lights
@@ -227,9 +240,10 @@
                                       (send temp set-label (number->string (ask hvac 'cur-temp)))
                                       (send actual-date set-label date-string)  
                                       (send actual-time set-label time-string)
+                                      (update-status-display)
                                       (ask hvac 'run)
-                                      (send furnace-setting set-label (string-append "Furnace is " (if (equal? 2 (ask hvac 'state?)) "On"
-                                                                                                     "Off")))
+                                      (send furnace-setting set-label (string-append "Furnace is " (cond [(equal? 2 (ask hvac 'state?)) "On"]
+                                                                                                     [else "Off"])))
                                       (send ac-setting set-label (string-append "A/C is " (if (equal? 4 (ask hvac 'state?)) "On"
                                                                                                      "Off"))))]
                    [interval #f]))
