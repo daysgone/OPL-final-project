@@ -224,8 +224,11 @@
                                                (begin (ask self 'set-device-off!)
                                                       (set! current-mode 0))]
                                               [(equal? mode 1) (set! current-mode 1)];fan on
-                                              [(equal? mode 2) (set! current-mode 2)];furnace on
-                                              [(equal? mode 4) (set! current-mode 4)];ac on
+                                              [(equal? mode 2) (begin(set! current-mode 2);furnace on shut off ac
+                                                                     (ask self 'ask-child 'ac 'set-off!))]
+                                              
+                                              [(equal? mode 4) (begin(set! current-mode 4);ac on shut off furnace
+                                                                     (ask self 'ask-child 'furnace 'set-off!))]
                                               
                                               [else (error "0 for system off, 1 for fan, 2 for furnace, 4 for ac ")]))]
            
@@ -250,7 +253,7 @@
                                     
                                     (cond [(equal? current-mode 0)
                                                   (unless (not debug)(printf "system currently off, please use 'set-state! \n"))]
-                                          [(equal? current-mode 1)(printf "fan set to on\n")]
+                                          [(equal? current-mode 1)(unless (not debug)(printf "fan set to on\n"))]
                                           [(equal? current-mode 2);furnace on
                                            (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
                                                  (ask self 'set-child! 'furnace #t)]
@@ -258,10 +261,10 @@
                                                  (ask self 'set-child! 'furnace  #f)]
                                                 [else (unless (not debug)(printf "in no change temp range\n"))])]
                                           [(equal? current-mode 4);ac on
-                                           (cond [(<= (degreesC) (- (F->C temp) temp-range));turn on furnace when x degrees below temp set
-                                                 (ask self 'set-child! 'ac  #f)]
-                                                [(>= (degreesC) (+ (F->C temp) temp-range))
-                                                 (ask self 'set-child! 'ac #t)]
+                                           (cond [(>= (degreesC) (+ (F->C temp) temp-range));turn on furnace when x degrees below temp set
+                                                 (ask self 'set-child! 'ac  #t)]
+                                                [(<= (degreesC) (- (F->C temp) temp-range))
+                                                 (ask self 'set-child! 'ac #f)]
                                                 [else (unless (not debug)(printf "in no change temp range\n"))])]
                                           
                                               
