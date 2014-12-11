@@ -100,7 +100,7 @@
         (set! hour (number->string (if (<= (date-hour date) 12) (date-hour date)
                                        (- (date-hour date) 12))))
         (set! minute (if (> (date-minute date) 10) (number->string (date-minute date))
-                        (number->string (date-minute date))))
+                        (string-append "0" (number->string (date-minute date)))))
         (set! month (number->string (date-month date)))
         (set! day (number->string (date-day date)))
         (set! year (number->string (date-year date)))
